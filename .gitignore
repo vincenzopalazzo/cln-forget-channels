@@ -1,0 +1,4 @@
+cln4go-plugin
+vendor
+
+**/target

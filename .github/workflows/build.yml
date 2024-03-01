@@ -1,0 +1,29 @@
+name: Build and test Go
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.18
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.18
+
+      - name: Check out source code
+        uses: actions/checkout@v1
+
+      - name: Format
+        run: if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then exit 1; fi
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+
+      - name: Go check build
+        run: make
