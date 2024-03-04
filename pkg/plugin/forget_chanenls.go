@@ -79,23 +79,26 @@ func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (
 	}
 	channels_modified := make([]map[string]any, 0)
 	channels := listFunds["channels"].([]any)
+	cln.Log("debug", fmt.Sprintf("channels to look inside size %d", len(channels)))
 	for _, channel := range channels {
 		channel := channel.(map[string]any)
 		peer_id := channel["peer_id"].(string)
 		funding_txid := channel["funding_txid"].(string)
 		funding_output := channel["funding_output"].(float64)
 		channel_state := channel["state"].(string)
-		status, err := checkFundingTransaction(cln, funding_txid, uint32(funding_output))
-		if err != nil {
-			return nil, err
-		}
-
+		cln.Log("debug", fmt.Sprintf("checking channel with state %s", channel_state))
 		// Check if the status of the channel is correct with what we want
 		if channel_state != "CHANNELD_AWAITING_LOCKIN" {
 			continue
 		}
 
+		status, err := checkFundingTransaction(cln, funding_txid, uint32(funding_output))
+		if err != nil {
+			cln.Log("debug", fmt.Sprintf("error while checking the funding tx %d", status))
+			return nil, err
+		}
 		short_channel_id := channel["short_channel_id"].(string)
+		cln.Log("debug", fmt.Sprintf("looking channel %s with status %s for confirmation", short_channel_id, channel_state))
 		var state, action string
 		switch status {
 		case MEM_POOL_DISCARDED:
@@ -118,6 +121,7 @@ func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (
 			state = "UNCONFIRMED_TX"
 			cln.Log("info", fmt.Sprintf("channel `%s` with peer `%s` still waiting on confirmed utxo `%s`", peer_id, short_channel_id, funding_txid))
 		}
+		cln.Log("info", fmt.Sprintf("channel funding tx state %s", state))
 		channels_modified = append(channels_modified, map[string]any{
 			"peer_id":          peer_id,
 			"state":            state,
@@ -134,38 +138,37 @@ func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (
 
 func checkFundingTransaction(cln *plugin.Plugin[*State], funding_tx string, funding_output uint32) (TxStatus, error) {
 	// 1. check if there is an utxo
-	utxo, err := cln.State.Rpc("getutxout", map[string]any{
-		"txid": funding_tx,
-		"vout": funding_output,
-	})
-	if err != nil {
-		return UNCONFIRMED_TX, err
-	}
-
-	_, found := utxo["amount"]
-	if found {
-		return UNCONFIRMED_TX, nil
-	}
-	requestLink := fmt.Sprintf("https://mempool.space/api/tx/%s/status", funding_tx)
+	cln.Log("debug", fmt.Sprintf("checking for funding tx %s", funding_tx))
+	requestLink := fmt.Sprintf("https://mempool.space/api/tx/%s", funding_tx)
 	res, err := http.Get(requestLink)
 	if err != nil || res.StatusCode >= 200 {
+		cln.Log("debug", fmt.Sprintf("return UNCONFIRMED_TX: %s - %s", err, res.Status))
 		return UNCONFIRMED_TX, err
 	}
 	defer res.Body.Close()
 
 	str, err := io.ReadAll(res.Body)
 	if err != nil {
+		cln.Log("debug", fmt.Sprintf("return UNCONFIRMED_TX %s", err))
 		return UNCONFIRMED_TX, err
 	}
-
+	cln.Log("debug", fmt.Sprintf("funding tx status `%s`", str))
 	var response map[string]any
 	if err := json.Unmarshal(str, &response); err != nil {
+		cln.Log("debug", fmt.Sprintf("return UNCONFIRMED_TX %s", err))
 		return UNCONFIRMED_TX, nil
 	}
-	status, found := response["confirmed"].(bool)
+	statusJson, found := response["status"].(map[string]any)
+	if !found {
+		cln.Log("debug", fmt.Sprintf("return UNCONFIRMED_TX %s", err))
+		return UNCONFIRMED_TX, nil
+	}
+	status, found := statusJson["confirmed"].(bool)
 	if !found || status {
+		cln.Log("debug", fmt.Sprintf("return CONFIRMED_TX %s", err))
 		return CONFIRMED_TX, nil
 	}
+	cln.Log("info", fmt.Sprintf("Funding transaction %s looks discarded", funding_tx))
 	return MEM_POOL_DISCARDED, nil
 }
 
