@@ -8,9 +8,8 @@ import (
 
 func main() {
 	state := core.State{}
-	plugin := plugin.New(&state, true, plugin.DummyOnInit[*core.State])
-	plugin.RegisterOption("foo", "string", "Hello Go", "An example of option", false)
-	plugin.RegisterRPCMethod("hello", "", "an example of rpc method", core.Hello)
+	plugin := plugin.New(&state, true, core.OnInit)
+	plugin.RegisterRPCMethod("forget-channels", "", "A dangerus command that will help to clean up broken core lightning with a list of channel that will never confirm", core.ForgetChannels)
 	plugin.RegisterNotification("shutdown", core.OnShutdown)
 	plugin.Start()
 }

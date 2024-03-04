@@ -46,6 +46,7 @@
             go
             rustc
             cargo
+            rustfmt
 
             # integration test dependencies
             clightning
