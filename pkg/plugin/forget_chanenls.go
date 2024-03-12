@@ -72,6 +72,14 @@ const (
 	CONFIRMED_TX
 )
 
+func stringify(obj any) string {
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
+}
+
 func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (map[string]any, error) {
 	listFunds, err := cln.State.Rpc("listfunds", map[string]any{})
 	if err != nil {
@@ -81,6 +89,7 @@ func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (
 	channels := listFunds["channels"].([]any)
 	cln.Log("debug", fmt.Sprintf("channels to look inside size %d", len(channels)))
 	for _, channel := range channels {
+		cln.Log("debug", fmt.Sprintf("channel: `%s`", stringify(channel)))
 		channel := channel.(map[string]any)
 		peer_id := channel["peer_id"].(string)
 		funding_txid := channel["funding_txid"].(string)
@@ -141,11 +150,15 @@ func checkFundingTransaction(cln *plugin.Plugin[*State], funding_tx string, fund
 	cln.Log("debug", fmt.Sprintf("checking for funding tx %s", funding_tx))
 	requestLink := fmt.Sprintf("https://mempool.space/api/tx/%s", funding_tx)
 	res, err := http.Get(requestLink)
-	if err != nil || res.StatusCode >= 200 {
-		cln.Log("debug", fmt.Sprintf("return UNCONFIRMED_TX: %s - %s", err, res.Status))
-		return UNCONFIRMED_TX, err
+	if err != nil {
+		return UNCONFIRMED_TX, nil
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode >= 400 {
+		cln.Log("debug", fmt.Sprintf("return MEM_POOL_DISCARDED: %s - %s", err, res.Status))
+		return MEM_POOL_DISCARDED, nil
+	}
 
 	str, err := io.ReadAll(res.Body)
 	if err != nil {
