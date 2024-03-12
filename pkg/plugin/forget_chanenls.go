@@ -106,8 +106,14 @@ func checkChannelsToForget(cln *plugin.Plugin[*State], request map[string]any) (
 			cln.Log("debug", fmt.Sprintf("error while checking the funding tx %d", status))
 			return nil, err
 		}
-		short_channel_id := channel["short_channel_id"].(string)
-		cln.Log("debug", fmt.Sprintf("looking channel %s with status %s for confirmation", short_channel_id, channel_state))
+		short_channel_id, found := channel["channel_id"]
+		if found {
+			short_channel_id = short_channel_id.(string)
+			cln.Log("debug", fmt.Sprintf("looking channel %s with status %s for confirmation", short_channel_id, channel_state))
+		} else {
+			short_channel_id = nil
+			cln.Log("debug", fmt.Sprintf("looking channel without short channel id with status %s for confirmation", channel_state))
+		}
 		var state, action string
 		switch status {
 		case MEM_POOL_DISCARDED:
@@ -187,17 +193,17 @@ func checkFundingTransaction(cln *plugin.Plugin[*State], funding_tx string, fund
 
 func forgetChannel(cln *plugin.Plugin[*State], channel map[string]any) error {
 	// 1. Call the forget channel.
-	forgetChannel, err := cln.State.Rpc("dev-forget-channel", map[string]any{
-		"id":               channel["peer_id"],
-		"short_channel_id": channel["short_channel_id"],
-	})
+	request := map[string]any{
+		"id": channel["peer_id"],
+	}
+	if val, ok := channel["short_channel_id"]; ok {
+		request["short_channel_id"] = val
+	}
+	cln.Log("debug", fmt.Sprintf("call forget the channel with payload `%s`", stringify(request)))
+	forgetChannel, err := cln.State.Rpc("dev-forget-channel", request)
 	if err != nil {
 		return err
 	}
-	jsonInfo, err := json.Marshal(forgetChannel)
-	if err != nil {
-		return err
-	}
-	cln.Log("info", string(jsonInfo))
+	cln.Log("info", fmt.Sprintf("forgetting channel `%s`", stringify(forgetChannel)))
 	return nil
 }
