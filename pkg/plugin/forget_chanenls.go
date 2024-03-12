@@ -194,7 +194,8 @@ func checkFundingTransaction(cln *plugin.Plugin[*State], funding_tx string, fund
 func forgetChannel(cln *plugin.Plugin[*State], channel map[string]any) error {
 	// 1. Call the forget channel.
 	request := map[string]any{
-		"id": channel["peer_id"],
+		"id":         channel["peer_id"],
+		"channel_id": channel["channel_id"],
 	}
 	if val, ok := channel["short_channel_id"]; ok {
 		request["short_channel_id"] = val
