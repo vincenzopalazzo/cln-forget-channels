@@ -40,7 +40,6 @@ func OnInit(cln *plugin.Plugin[*State], conf map[string]any) map[string]any {
 			"disable": err,
 		}
 	}
-	cln.Log("debug", fmt.Sprintf("%s", conf))
 	rpc, err := client.NewUnix(fmt.Sprintf("%s/%s", clnConf.LightningDir, clnConf.RpcFile))
 	if err != nil {
 		return map[string]any{
@@ -65,7 +64,6 @@ func checkIfThereDeveloperIsEnable(cln *plugin.Plugin[*State]) map[string]any {
 			"disable": "error while looking inside the configuration, the `configs` keys is not present",
 		}
 	}
-	cln.Log("debug", fmt.Sprintf("%s", config))
 	developerEnable := config["developer"].(map[string]any)
 	developerValue, found := developerEnable["set"].(bool)
 	if !found || !developerValue {

@@ -3,7 +3,7 @@
 //! Author: Vincenzo Palazzo <vincenzopalazzo@member.fsf.org>
 use std::sync::Once;
 
-use clightning_testing ::cln;
+use clightning_testing::cln;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
