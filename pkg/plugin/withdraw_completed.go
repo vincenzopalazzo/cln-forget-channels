@@ -12,21 +12,28 @@ func WithdrawCompletedTx(cln *plugin.Plugin[*State], request map[string]any) (ma
 		return nil, err
 	}
 
-	outputs, found := listFunds["outputs"].([]map[string]any)
+	outputs, found := listFunds["outputs"].([]any)
 	if !found {
 		return nil, fmt.Errorf("Outputs insid the object is not found: `%s`", stringify(listFunds))
 	}
 
+	cln.Log("info", stringify(outputs))
 	utxo := make([]string, 0)
 	for _, output := range outputs {
+		cln.Log("info", fmt.Sprintf("output %s", stringify(output)))
+		output := output.(map[string]any)
 		switch output["status"].(string) {
 		case "confirmed":
 			cln.Log("info", fmt.Sprintf("found a eligible tx `%s`", stringify(output)))
-			utxo = append(utxo, fmt.Sprintf("%s:%s", output["txid"], output["output"]))
+			utxo = append(utxo, fmt.Sprintf("%s:%d", output["txid"], uint32(output["output"].(float32))))
 		default:
 			cln.Log("info", fmt.Sprintf("found a tx that it is not eligible `%s`", stringify(output)))
 			continue
 		}
+	}
+
+	if len(utxo) == 0 {
+		return nil, fmt.Errorf("none to witdraw from `%s`", stringify(outputs))
 	}
 
 	address, found := request["destination"]
