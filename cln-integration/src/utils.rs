@@ -13,7 +13,7 @@ macro_rules! wait {
                 std::thread::sleep(std::time::Duration::from_millis(wait));
                 continue;
             }
-            log::info!("callback completed in {wait} milliseconds");
+            log::trace!("callback completed in {wait} milliseconds");
             success = true;
             break;
         }
@@ -116,7 +116,7 @@ pub fn open_channel(node_a: &cln::Node, node_b: &cln::Node, dual_open: bool) -> 
     wait!(
         || {
             let mut channels = node_a.rpc().listfunds().unwrap().channels;
-            log::info!("{:?}", channels);
+            log::trace!("{:?}", channels);
             let origin_size = channels.len();
             channels.retain(|chan| chan.state == "CHANNELD_NORMAL");
             if channels.len() == origin_size {
@@ -154,13 +154,14 @@ pub fn wait_for_funds(cln: &cln::Node) -> anyhow::Result<()> {
             let address = bitcoincore_rpc::bitcoin::Address::from_str(&addr)
                 .unwrap()
                 .assume_checked();
-            let _ = cln.btc().rpc().generate_to_address(1, &address).unwrap();
+            let _ = cln.btc().rpc().generate_to_address(6, &address).unwrap();
 
-            let Ok(funds) = cln.rpc().listfunds() else {
+            let Ok(mut funds) = cln.rpc().listfunds() else {
                 return Err(());
             };
-            log::trace!("listfunds {:?}", funds);
-            if funds.outputs.is_empty() {
+            let size = funds.outputs.len();
+            funds.outputs.retain(|fund| fund.status == "confirmed");
+            if size - funds.outputs.len() > 1 {
                 return Err(());
             }
             Ok(())

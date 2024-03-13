@@ -46,12 +46,111 @@ async fn test_simple_devforgetchanenls() -> anyhow::Result<()> {
     let node_two = node!(btc.clone());
     open_channel(&node_two, &node_one, false)?;
 
-    node_one.print_logs()?;
     #[derive(Deserialize, Debug)]
     struct ForgetChannels {
         channels: Vec<Value>,
     }
     let forget_channels: ForgetChannels = node_one.rpc().call("forget-channels", json!({}))?;
     assert_eq!(forget_channels.channels.len(), 0, "{:?}", forget_channels);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ntest::timeout(560000)]
+async fn test_simple_withdraw_only_confirmed_one() -> anyhow::Result<()> {
+    init();
+
+    let node_one = node!();
+    let btc = node_one.btc();
+    let node_two = node!(btc.clone());
+    open_channel(&node_two, &node_one, false)?;
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    fund_wallet(node_one.btc(), &addr, 8)?;
+    wait_for_funds(&node_one)?;
+
+    let withdraw: Result<Value, _> = node_one.rpc().call("withdraw-only-confirmed", json!({}));
+    assert!(withdraw.is_err());
+    log::info!(target: "test_simple_withdraw_only_confirmed_one", "{:?}", withdraw);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ntest::timeout(560000)]
+async fn test_simple_withdraw_only_confirmed_two() -> anyhow::Result<()> {
+    init();
+
+    let node_one = node!();
+    let btc = node_one.btc();
+    let node_two = node!(btc.clone());
+    open_channel(&node_two, &node_one, false)?;
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    fund_wallet(node_one.btc(), &addr, 8)?;
+    wait_for_funds(&node_one)?;
+
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    let withdraw: Result<Value, _> = node_one.rpc().call(
+        "withdraw-only-confirmed",
+        json!({
+            "destination": addr
+        }),
+    );
+    assert!(withdraw.is_err());
+    log::info!(target: "test_simple_withdraw_only_confirmed_two", "{:?}", withdraw);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ntest::timeout(560000)]
+async fn test_simple_withdraw_only_confirmed_3() -> anyhow::Result<()> {
+    init();
+
+    let node_one = node!();
+    let btc = node_one.btc();
+    let node_two = node!(btc.clone());
+    open_channel(&node_two, &node_one, false)?;
+
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    fund_wallet(node_one.btc(), &addr, 8)?;
+    wait_for_funds(&node_one)?;
+
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    let withdraw: Result<Value, _> = node_one.rpc().call(
+        "withdraw-only-confirmed",
+        json!({
+            "destination": addr,
+            "amount": "all",
+        }),
+    );
+    assert!(withdraw.is_err());
+    log::info!(target: "test_simple_withdraw_only_confirmed_3", "{:?}", withdraw);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ntest::timeout(560000)]
+async fn test_simple_withdraw_only_confirmed_4() -> anyhow::Result<()> {
+    init();
+
+    let node_one = node!();
+    let btc = node_one.btc();
+    let node_two = node!(btc.clone());
+    open_channel(&node_two, &node_one, false)?;
+
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    fund_wallet(node_one.btc(), &addr, 8)?;
+    wait_for_funds(&node_one)?;
+
+    let addr = node_one.rpc().newaddr(None)?.bech32.unwrap();
+    let withdraw: Result<Value, _> = node_one.rpc().call(
+        "withdraw-only-confirmed",
+        json!({
+            "destination": addr,
+            "amount": "all",
+        }),
+    );
+
+    log::info!(target: "test_simple_withdraw_only_confirmed_4", "{:?}", withdraw);
+    node_one.print_logs()?;
+    assert!(withdraw.is_ok());
     Ok(())
 }

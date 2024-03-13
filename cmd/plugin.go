@@ -10,6 +10,7 @@ func main() {
 	state := core.State{}
 	plugin := plugin.New(&state, true, core.OnInit)
 	plugin.RegisterRPCMethod("forget-channels", "", "A dangerus command that will help to clean up broken core lightning with a list of channel that will never confirm", core.ForgetChannels)
+	plugin.RegisterRPCMethod("withdraw-only-confirmed", "", "Perform a Withdraw only confirmed transactions", core.WithdrawCompletedTx)
 	plugin.RegisterNotification("shutdown", core.OnShutdown)
 	plugin.Start()
 }
